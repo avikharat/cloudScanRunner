@@ -1,0 +1,23 @@
+{
+  "user_id": "auth0|68e5fff46dc80010b238ef3a",
+  "organization_id": "00e8f754-8e5c-42e8-9221-b6eb70f35df0",
+  "project_id": "efacc480-c790-4335-90dd-4ae812e12349",
+  "scan_config": {
+    "start_url": "https://example.com",
+    "mode": "crawler",
+    "scan_depth": 1,
+    "max_urls": 2,
+    "viewport": "1920x1080",
+    "include_patterns": ["/*"],
+    "accessibility_standard": "wcag2aa",
+    "headless": true,
+    "capture_screenshots": true,
+    "timeout_ms": 15000,
+    "authentication": {"enabled": false}
+  },
+  "metadata": {
+    "trigger_source": "github_action_test",
+    "environment": "test",
+    "notes": "Quick test scan"
+  }
+}

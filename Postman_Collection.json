@@ -1,0 +1,195 @@
+{
+  "info": {
+    "name": "GitHub Actions Accessibility Scanner",
+    "description": "Collection for triggering Puppeteer accessibility scans via GitHub Actions API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "github_token",
+      "value": "ghp_your_token_here",
+      "type": "string"
+    },
+    {
+      "key": "repo_owner",
+      "value": "your-username",
+      "type": "string"
+    },
+    {
+      "key": "repo_name", 
+      "value": "your-repo",
+      "type": "string"
+    },
+    {
+      "key": "workflow_file",
+      "value": "scanner.yml",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Trigger Accessibility Scan - Crawler Mode",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/vnd.github+json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{github_token}}"
+          },
+          {
+            "key": "X-GitHub-Api-Version",
+            "value": "2022-11-28"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ref\": \"main\",\n  \"inputs\": {\n    \"config\": \"{\\\"user_id\\\":\\\"auth0|68e5fff46dc80010b238ef3a\\\",\\\"organization_id\\\":\\\"00e8f754-8e5c-42e8-9221-b6eb70f35df0\\\",\\\"project_id\\\":\\\"efacc480-c790-4335-90dd-4ae812e12349\\\",\\\"scan_config\\\":{\\\"start_url\\\":\\\"https://freight.amazon.com\\\",\\\"mode\\\":\\\"crawler\\\",\\\"scan_depth\\\":3,\\\"max_urls\\\":5,\\\"viewport\\\":\\\"1920x1080\\\",\\\"include_patterns\\\":[\\\"/\\/*\\\"],\\\"exclude_patterns\\\":[\\\"https://example.com/logout\\\",\\\"https://example.com/api/*\\\"],\\\"accessibility_standard\\\":\\\"wcag2aa\\\",\\\"enable_contrast_check\\\":true,\\\"headless\\\":true,\\\"capture_screenshots\\\":true,\\\"store_html_snapshot\\\":false,\\\"timeout_ms\\\":30000,\\\"authentication\\\":{\\\"enabled\\\":false}},\\\"metadata\\\":{\\\"trigger_source\\\":\\\"postman_api\\\",\\\"run_id\\\":\\\"postman_run_001\\\",\\\"environment\\\":\\\"test\\\",\\\"notes\\\":\\\"Crawler scan triggered from Postman\\\"}}\"\n  }\n}"
+        },
+        "url": {
+          "raw": "https://api.github.com/repos/{{repo_owner}}/{{repo_name}}/actions/workflows/{{workflow_file}}/dispatches",
+          "protocol": "https",
+          "host": ["api", "github", "com"],
+          "path": ["repos", "{{repo_owner}}", "{{repo_name}}", "actions", "workflows", "{{workflow_file}}", "dispatches"]
+        }
+      }
+    },
+    {
+      "name": "Trigger Accessibility Scan - Manual Mode",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/vnd.github+json"
+          },
+          {
+            "key": "Authorization", 
+            "value": "Bearer {{github_token}}"
+          },
+          {
+            "key": "X-GitHub-Api-Version",
+            "value": "2022-11-28"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ref\": \"main\",\n  \"inputs\": {\n    \"config\": \"{\\\"user_id\\\":\\\"auth0|68e5fff46dc80010b238ef3a\\\",\\\"organization_id\\\":\\\"00e8f754-8e5c-42e8-9221-b6eb70f35df0\\\",\\\"project_id\\\":\\\"efacc480-c790-4335-90dd-4ae812e12349\\\",\\\"scan_config\\\":{\\\"mode\\\":\\\"manual\\\",\\\"urls\\\":[\\\"https://freight.amazon.com\\\",\\\"https://freight.amazon.com/about\\\"],\\\"viewport\\\":\\\"1920x1080\\\",\\\"accessibility_standard\\\":\\\"wcag2aa\\\",\\\"capture_screenshots\\\":true,\\\"timeout_ms\\\":30000},\\\"metadata\\\":{\\\"trigger_source\\\":\\\"postman_api\\\",\\\"environment\\\":\\\"test\\\",\\\"notes\\\":\\\"Manual scan from Postman\\\"}}\"\n  }\n}"
+        },
+        "url": {
+          "raw": "https://api.github.com/repos/{{repo_owner}}/{{repo_name}}/actions/workflows/{{workflow_file}}/dispatches",
+          "protocol": "https",
+          "host": ["api", "github", "com"],
+          "path": ["repos", "{{repo_owner}}", "{{repo_name}}", "actions", "workflows", "{{workflow_file}}", "dispatches"]
+        }
+      }
+    },
+    {
+      "name": "Get Workflow Runs",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/vnd.github+json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{github_token}}"
+          },
+          {
+            "key": "X-GitHub-Api-Version", 
+            "value": "2022-11-28"
+          }
+        ],
+        "url": {
+          "raw": "https://api.github.com/repos/{{repo_owner}}/{{repo_name}}/actions/workflows/{{workflow_file}}/runs?per_page=10",
+          "protocol": "https",
+          "host": ["api", "github", "com"],
+          "path": ["repos", "{{repo_owner}}", "{{repo_name}}", "actions", "workflows", "{{workflow_file}}", "runs"],
+          "query": [
+            {
+              "key": "per_page",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Workflow Run Details",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/vnd.github+json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{github_token}}"
+          },
+          {
+            "key": "X-GitHub-Api-Version",
+            "value": "2022-11-28"
+          }
+        ],
+        "url": {
+          "raw": "https://api.github.com/repos/{{repo_owner}}/{{repo_name}}/actions/runs/{{run_id}}",
+          "protocol": "https",
+          "host": ["api", "github", "com"],
+          "path": ["repos", "{{repo_owner}}", "{{repo_name}}", "actions", "runs", "{{run_id}}"],
+          "variable": [
+            {
+              "key": "run_id",
+              "value": "replace_with_actual_run_id"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Download Artifacts",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/vnd.github+json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{github_token}}"
+          },
+          {
+            "key": "X-GitHub-Api-Version",
+            "value": "2022-11-28"
+          }
+        ],
+        "url": {
+          "raw": "https://api.github.com/repos/{{repo_owner}}/{{repo_name}}/actions/runs/{{run_id}}/artifacts",
+          "protocol": "https",
+          "host": ["api", "github", "com"],
+          "path": ["repos", "{{repo_owner}}", "{{repo_name}}", "actions", "runs", "{{run_id}}", "artifacts"],
+          "variable": [
+            {
+              "key": "run_id",
+              "value": "replace_with_actual_run_id"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
