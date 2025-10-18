@@ -42,7 +42,7 @@ class AccessibilityChecker {
       await page.type(authConfig.password_field, authConfig.credentials.password);
       
       await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle0' }),
+        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }),
         page.click(authConfig.submit_selector)
       ]);
 
