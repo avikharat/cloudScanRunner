@@ -42,7 +42,7 @@ class AccessibilityChecker {
       await page.type(authConfig.password_field, authConfig.credentials.password);
       
       await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }),
+        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }),
         page.click(authConfig.submit_selector)
       ]);
 
@@ -70,7 +70,7 @@ class AccessibilityChecker {
       
       try {
         const page = await this.browser.newPage();
-        await page.goto(currentUrl, { waitUntil: 'networkidle0', timeout: config.timeout_ms });
+        await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: config.timeout_ms });
         
         // Extract links for crawling only if we haven't reached max_urls
         if (urls.size < config.max_urls && visited.size < config.scan_depth) {
@@ -183,7 +183,7 @@ class AccessibilityChecker {
 
       // Navigate to page
       const response = await page.goto(url, { 
-        waitUntil: 'networkidle0', 
+        waitUntil: 'domcontentloaded', 
         timeout: config.timeout_ms || 30000 
       });
 
