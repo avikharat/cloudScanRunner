@@ -96,11 +96,6 @@ jobs:
       - name: 🔍 Run accessibility scan
         id: scan
         run: |
-          echo "🚀 Starting Puppeteer accessibility scan..."
-          
-          # Set Chrome path for Puppeteer
-          export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
-          
           # Run the scanner with timeout and error handling
           timeout 25m node run-scan.js config.json > scan.log 2>&1
           scan_exit_code=$?
