@@ -242,55 +242,59 @@ class AccessibilityChecker {
           captureBeyondViewport: false // Prevent issues with large pages
         });
 
-        // Upload screenshot to database
-        try {
-          const uploadResult = await this.apiClient.uploadScreenshot(screenshotPath);
-          screenshotUrl = uploadResult.url;
-          console.log(`Screenshot uploaded: ${screenshotUrl}`);
-        } catch (error) {
-          console.error('Failed to upload screenshot:', error.message);
+        // Upload screenshot to database if API upload is enabled
+        if (config.upload_to_api !== false && this.apiClient) {
+          try {
+            const uploadResult = await this.apiClient.uploadScreenshot(screenshotPath);
+            screenshotUrl = uploadResult.url;
+            console.log(`Screenshot uploaded: ${screenshotUrl}`);
+          } catch (error) {
+            console.error('Failed to upload screenshot:', error.message);
+          }
         }
       }
 
-      // Create scan URL entry in database
+      // Create scan URL entry in database if API upload is enabled
       let scanUrlData = null;
-      try {
-        scanUrlData = await this.apiClient.createScanUrl(
-          this.currentScan.id,
-          url,
-          userId,
-          {
-            title: pageTitle,
-            loadTime,
-            statusCode,
-            screenshotPath: screenshotUrl
+      if (config.upload_to_api !== false && this.apiClient && this.currentScan) {
+        try {
+          scanUrlData = await this.apiClient.createScanUrl(
+            this.currentScan.id,
+            url,
+            userId,
+            {
+              title: pageTitle,
+              loadTime,
+              statusCode,
+              screenshotPath: screenshotUrl
+            }
+          );
+
+          if (!scanUrlData || !scanUrlData.id) {
+            throw new Error('Failed to create scan URL entry: No ID returned');
           }
-        );
 
-        if (!scanUrlData || !scanUrlData.id) {
-          throw new Error('Failed to create scan URL entry: No ID returned');
+          console.log(`Created scan URL entry: ${scanUrlData.id}`);
+        } catch (error) {
+          console.error('Failed to create scan URL entry:', error.message);
+          console.log('Continuing scan without database integration...');
         }
-
-        console.log(`Created scan URL entry: ${scanUrlData.id}`);
-      } catch (error) {
-        console.error('Failed to create scan URL entry:', error.message);
-        throw error;
       }
 
       // Process violations and get element positions
       const processedIssues = await this.processViolations(page, axeResults.violations, screenshotPath);
 
-      // Create issues in database if any found
-      if (processedIssues.length > 0) {
+      // Create issues in database if API upload is enabled and we have a scan URL
+      if (config.upload_to_api !== false && scanUrlData && processedIssues.length > 0) {
         try {
           await this.apiClient.createBulkIssues(scanUrlData.id, userId, processedIssues);
           console.log(`Created ${processedIssues.length} issues for URL: ${url}`);
         } catch (error) {
           console.error('Failed to create issues in database:', error.message);
-          // Don't throw here - we want to continue with other URLs
+          console.log('Issues saved locally only');
         }
       } else {
-        console.log(`No accessibility issues found for URL: ${url}`);
+        console.log(`Found ${processedIssues.length} accessibility issues for URL: ${url}`);
       }
 
       await page.close();
@@ -408,22 +412,35 @@ class AccessibilityChecker {
       console.log('Starting accessibility scan...');
       await this.initialize();
 
-      // Initialize API client with default base URL
-      this.apiClient = new ApiClient();
+      // Initialize API client and create scan only if API upload is enabled
+      if (config.scan_config.upload_to_api !== false) {
+        try {
+          this.apiClient = new ApiClient();
 
-      // Create scan in database
-      console.log('Creating scan in database...');
-      this.currentScan = await this.apiClient.createScan(
-        config.project_id,
-        config.user_id,
-        config.scan_config,
-        config.metadata
-      );
-      
-      console.log(`Scan created with ID: ${this.currentScan.id}`);
+          // Create scan in database
+          console.log('Creating scan in database...');
+          this.currentScan = await this.apiClient.createScan(
+            config.project_id,
+            config.user_id,
+            config.scan_config,
+            config.metadata
+          );
+          
+          console.log(`Scan created with ID: ${this.currentScan.id}`);
 
-      // Update scan status to running
-      await this.apiClient.updateScanStatus(this.currentScan.id, 'running', config.user_id);
+          // Update scan status to running
+          await this.apiClient.updateScanStatus(this.currentScan.id, 'running', config.user_id);
+        } catch (error) {
+          console.error('Failed to initialize API client or create scan:', error.message);
+          console.log('Continuing with local-only scan...');
+          this.apiClient = null;
+          this.currentScan = null;
+        }
+      } else {
+        console.log('API upload disabled - running local-only scan');
+        this.apiClient = null;
+        this.currentScan = null;
+      }
 
       // Create a new page for authentication
       const authPage = await this.browser.newPage();
@@ -485,27 +502,33 @@ class AccessibilityChecker {
 
       await authPage.close();
 
-      // Update scan status to completed with statistics
-      await this.apiClient.updateScanStatus(
-        this.currentScan.id, 
-        'completed', 
-        config.user_id,
-        {
-          total_urls: urlsToScan.length,
-          total_issues: allIssues.length,
-          high_impact_issues: highImpactIssues,
-          medium_impact_issues: mediumImpactIssues,
-          low_impact_issues: lowImpactIssues,
-          duration_ms: Date.now() - new Date(this.currentScan.created_at).getTime()
+      // Update scan status to completed with statistics (if API is enabled)
+      if (this.apiClient && this.currentScan) {
+        try {
+          await this.apiClient.updateScanStatus(
+            this.currentScan.id, 
+            'completed', 
+            config.user_id,
+            {
+              total_urls: urlsToScan.length,
+              total_issues: allIssues.length,
+              high_impact_issues: highImpactIssues,
+              medium_impact_issues: mediumImpactIssues,
+              low_impact_issues: lowImpactIssues,
+              duration_ms: Date.now() - new Date(this.currentScan.created_at).getTime()
+            }
+          );
+        } catch (error) {
+          console.error('Failed to update scan status:', error.message);
         }
-      );
+      }
 
       await this.cleanup();
 
       // Generate output in required format
       const output = {
         body: {
-          scan_id: this.currentScan.id,
+          scan_id: this.currentScan ? this.currentScan.id : `local-${Date.now()}`,
           created_by: config.user_id,
           scan_summary: {
             total_pages_scanned: scanResults.length,
@@ -518,22 +541,29 @@ class AccessibilityChecker {
               url: r.url,
               scan_url_id: r.scanUrlId || null,
               issues_count: r.issues.length,
-              screenshot_available: !!r.screenshotUrl,
+              screenshot_available: !!r.screenshotPath,
               screenshot_url: r.screenshotUrl || null
             }))
           },
           issues: allIssues
         }
       };
+
+      // Save results locally for offline mode
+      await fs.writeFile('accessibility-results.json', JSON.stringify(output, null, 2));
       
       console.log(`\n=== Scan Summary ===`);
-      console.log(`Scan ID: ${this.currentScan.id}`);
+      console.log(`Scan ID: ${output.body.scan_id}`);
       console.log(`Pages scanned: ${scanResults.length}`);
       console.log(`Total issues found: ${allIssues.length}`);
       console.log(`  - High impact: ${highImpactIssues}`);
       console.log(`  - Medium impact: ${mediumImpactIssues}`);
       console.log(`  - Low impact: ${lowImpactIssues}`);
-      console.log(`Scan completed and saved to database`);
+      if (this.currentScan) {
+        console.log(`Scan completed and saved to database`);
+      } else {
+        console.log(`Scan completed - results saved locally only`);
+      }
       
       return output;
 
