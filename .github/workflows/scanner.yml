@@ -1,4 +1,4 @@
-name: Puppeteer Accessibility Scanner
+name: Accessibility Scanner
 
 on:
   workflow_dispatch:
@@ -8,11 +8,6 @@ on:
         required: true
         type: string
         default: '{"user_id":"auth0|scanner","organization_id":"org_github","project_id":"proj_github","scan_config":{"mode":"manual","urls":["https://example.com"],"viewport":"1920x1080","accessibility_standard":"wcag2aa","capture_screenshots":true,"timeout_ms":30000},"metadata":{"trigger_source":"github_action","environment":"ci"}}'
-
-env:
-  NODE_VERSION: '20'
-  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
-  PUPPETEER_EXECUTABLE_PATH: '/usr/bin/google-chrome-stable'
 
 jobs:
   accessibility-scan:
