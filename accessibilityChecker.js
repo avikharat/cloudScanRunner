@@ -144,11 +144,11 @@ class AccessibilityChecker {
         await page.evaluate((y) => {
           window.scrollTo(0, y);
         }, scrollY);
-        await page.waitForTimeout(300); // Short delay between scroll steps
+        await new Promise(resolve => setTimeout(resolve, 300)); // Short delay between scroll steps
       }
       
       // Wait for new content to load after full scroll
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Check if page height increased (new content loaded)
       currentHeight = await page.evaluate(() => {
@@ -164,7 +164,8 @@ class AccessibilityChecker {
     });
     
     // Wait for any animations or content shifts to settle
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+      
     
     console.log(`Lazy loading complete after ${scrollAttempts} attempts. Final page height: ${currentHeight}px`);
   }
