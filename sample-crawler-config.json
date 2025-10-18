@@ -1,0 +1,45 @@
+{
+  "user_id": "auth0|68e5fff46dc80010b238ef3a",
+  "organization_id": "00e8f754-8e5c-42e8-9221-b6eb70f35df0",
+  "project_id": "efacc480-c790-4335-90dd-4ae812e12349",
+  "scan_config": {
+    "start_url": "https://freight.amazon.com",
+    "mode": "crawler",
+    "scan_depth": 3,
+    "max_urls": 5,
+    "viewport": "1920x1080",
+    "include_patterns": [
+      "/*"
+    ],
+    "exclude_patterns": [
+      "https://example.com/logout",
+      "https://example.com/api/*"
+    ],
+    "accessibility_standard": "wcag2aa",
+    "enable_contrast_check": true,
+    "headless": true,
+    "capture_screenshots": true,
+    "store_html_snapshot": false,
+    "timeout_ms": 30000,
+    "authentication": {
+      "enabled": false,
+      "type": "form",
+      "login_url": "https://example.com/login",
+      "username_field": "#email",
+      "password_field": "#password",
+      "submit_selector": "button[type='submit']",
+      "credentials": {
+        "username": "testuser@example.com",
+        "password": "securepassword123"
+      },
+      "post_login_wait_selector": "nav.main-nav",
+      "cookies_to_persist": ["sessionid", "csrftoken"]
+    }
+  },
+  "metadata": {
+    "trigger_source": "github_action",
+    "run_id": "gha_run_98765",
+    "environment": "ci",
+    "notes": "Crawler scan with login session"
+  }
+}

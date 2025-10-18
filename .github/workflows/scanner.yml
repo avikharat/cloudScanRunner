@@ -1,0 +1,282 @@
+name: Puppeteer Accessibility Scanner
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: 'JSON configuration for accessibility scan'
+        required: true
+        type: string
+        default: '{"user_id":"auth0|scanner","organization_id":"org_github","project_id":"proj_github","scan_config":{"mode":"manual","urls":["https://example.com"],"viewport":"1920x1080","accessibility_standard":"wcag2aa","capture_screenshots":true,"timeout_ms":30000},"metadata":{"trigger_source":"github_action","environment":"ci"}}'
+
+env:
+  NODE_VERSION: '20'
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
+  PUPPETEER_EXECUTABLE_PATH: '/usr/bin/google-chrome-stable'
+
+jobs:
+  accessibility-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 🐧 Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            wget \
+            gnupg \
+            ca-certificates \
+            fonts-liberation \
+            libappindicator3-1 \
+            libasound2 \
+            libatk-bridge2.0-0 \
+            libdrm2 \
+            libgtk-3-0 \
+            libnspr4 \
+            libnss3 \
+            libxss1 \
+            libxtst6 \
+            xdg-utils
+
+      - name: 🌐 Install Google Chrome
+        run: |
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      - name: 📦 Install npm dependencies
+        run: npm ci
+
+      - name: 📄 Parse and validate config
+        id: config
+        run: |
+          echo "Parsing input configuration..."
+          
+          # Parse the JSON input
+          config='${{ github.event.inputs.config }}'
+          echo "$config" | jq . > config.json
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Invalid JSON configuration provided"
+            exit 1
+          fi
+          
+          # Extract key values for logging
+          scan_mode=$(echo "$config" | jq -r '.scan_config.mode // "manual"')
+          urls_count=$(echo "$config" | jq -r '.scan_config.urls // [] | length')
+          start_url=$(echo "$config" | jq -r '.scan_config.start_url // "N/A"')
+          
+          echo "✅ Configuration validated successfully"
+          echo "📊 Scan mode: $scan_mode"
+          echo "🔗 URLs to scan: $urls_count"
+          echo "🚀 Start URL: $start_url"
+          
+          # Set outputs for later steps
+          echo "scan_mode=$scan_mode" >> $GITHUB_OUTPUT
+          echo "timestamp=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
+          
+          # Show full config (masked sensitive data)
+          echo "📋 Full configuration:"
+          echo "$config" | jq 'del(.scan_config.authentication.credentials)'
+
+      - name: 🔐 Setup environment variables
+        run: |
+          # Create .env file if secrets are available
+          touch .env
+          
+          if [ -n "${{ secrets.API_TOKEN }}" ]; then
+            echo "API_TOKEN=${{ secrets.API_TOKEN }}" >> .env
+          fi
+          
+          if [ -n "${{ secrets.WEBHOOK_URL }}" ]; then
+            echo "WEBHOOK_URL=${{ secrets.WEBHOOK_URL }}" >> .env
+          fi
+          
+          if [ -n "${{ secrets.BASIC_AUTH_USER }}" ]; then
+            echo "BASIC_AUTH_USER=${{ secrets.BASIC_AUTH_USER }}" >> .env
+          fi
+          
+          if [ -n "${{ secrets.BASIC_AUTH_PASS }}" ]; then
+            echo "BASIC_AUTH_PASS=${{ secrets.BASIC_AUTH_PASS }}" >> .env
+          fi
+
+      - name: 📁 Create reports directory
+        run: |
+          timestamp="${{ steps.config.outputs.timestamp }}"
+          report_dir="reports/${timestamp}"
+          mkdir -p "$report_dir"
+          echo "REPORT_DIR=$report_dir" >> $GITHUB_ENV
+          echo "📁 Created reports directory: $report_dir"
+
+      - name: 🔍 Run accessibility scan
+        id: scan
+        run: |
+          echo "🚀 Starting Puppeteer accessibility scan..."
+          
+          # Set Chrome path for Puppeteer
+          export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+          
+          # Run the scanner with timeout and error handling
+          timeout 25m node run-scan.js config.json > scan.log 2>&1
+          scan_exit_code=$?
+          
+          echo "📄 Scan log output:"
+          cat scan.log
+          
+          if [ $scan_exit_code -eq 0 ]; then
+            echo "✅ Scan completed successfully"
+            echo "success=true" >> $GITHUB_OUTPUT
+          elif [ $scan_exit_code -eq 124 ]; then
+            echo "⏰ Scan timed out after 25 minutes"
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "error=Scan timeout" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Scan failed with exit code: $scan_exit_code"
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "error=Scan failed with exit code $scan_exit_code" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 📊 Process scan results
+        if: always()
+        run: |
+          timestamp="${{ steps.config.outputs.timestamp }}"
+          scan_id="scan_${timestamp}"
+          
+          # Check if accessibility results exist
+          if [ -f "accessibility-results.json" ]; then
+            echo "📋 Processing accessibility results..."
+            
+            # Add metadata to results
+            jq --arg scan_id "$scan_id" --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+               '. + {scan_id: $scan_id, github_run_id: "${{ github.run_id }}", github_run_number: "${{ github.run_number }}", completed_at: $timestamp}' \
+               accessibility-results.json > "${REPORT_DIR}/scan-results.json"
+            
+            # Create summary
+            total_issues=$(jq '.body.scan_summary.total_issues_found // 0' "${REPORT_DIR}/scan-results.json")
+            pages_scanned=$(jq '.body.scan_summary.total_pages_scanned // 0' "${REPORT_DIR}/scan-results.json")
+            high_issues=$(jq '.body.scan_summary.high_impact_issues // 0' "${REPORT_DIR}/scan-results.json")
+            
+            echo "📈 Scan Summary:"
+            echo "  - Pages scanned: $pages_scanned"
+            echo "  - Total issues: $total_issues"
+            echo "  - High impact issues: $high_issues"
+            
+            # Create GitHub step summary
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🔍 Accessibility Scan Results
+          
+          | Metric | Value |
+          |--------|-------|
+          | **Scan ID** | \`$scan_id\` |
+          | **Pages Scanned** | $pages_scanned |
+          | **Total Issues** | $total_issues |
+          | **High Impact Issues** | $high_issues |
+          | **Status** | ${{ steps.scan.outputs.success == 'true' && '✅ Success' || '❌ Failed' }} |
+          
+          ### 📁 Artifacts
+          - Detailed results available in workflow artifacts
+          - Screenshots (if enabled) saved to artifacts
+          EOF
+            
+          else
+            echo "⚠️ No accessibility results file found"
+            
+            # Create error results
+            cat > "${REPORT_DIR}/scan-results.json" << EOF
+          {
+            "scan_id": "$scan_id",
+            "status": "failed",
+            "error": "${{ steps.scan.outputs.error || 'Unknown error occurred' }}",
+            "github_run_id": "${{ github.run_id }}",
+            "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "body": {
+              "scan_summary": {
+                "total_pages_scanned": 0,
+                "total_issues_found": 0,
+                "high_impact_issues": 0,
+                "medium_impact_issues": 0,
+                "low_impact_issues": 0
+              },
+              "issues": []
+            }
+          }
+          EOF
+          fi
+          
+          # Copy logs
+          if [ -f "scan.log" ]; then
+            cp scan.log "${REPORT_DIR}/"
+          fi
+          
+          # Copy screenshots if they exist
+          if [ -d "screenshots" ]; then
+            cp -r screenshots "${REPORT_DIR}/"
+            echo "📷 Screenshots copied to reports"
+          fi
+
+      - name: 📤 Upload scan results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-scan-results-${{ steps.config.outputs.timestamp }}
+          path: ${{ env.REPORT_DIR }}
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: 🔔 Send results to webhook
+        if: always() && env.WEBHOOK_URL != ''
+        run: |
+          if [ -f "${REPORT_DIR}/scan-results.json" ]; then
+            echo "📡 Sending results to webhook..."
+            
+            curl -X POST \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${{ secrets.API_TOKEN }}" \
+              -H "User-Agent: GitHub-Actions-Scanner" \
+              --data @"${REPORT_DIR}/scan-results.json" \
+              "${{ secrets.WEBHOOK_URL }}" \
+              --max-time 30 \
+              --retry 3 \
+              --retry-delay 5
+              
+            if [ $? -eq 0 ]; then
+              echo "✅ Results sent to webhook successfully"
+            else
+              echo "⚠️ Failed to send results to webhook"
+            fi
+          else
+            echo "⚠️ No results file to send"
+          fi
+
+      - name: 💾 Archive page results
+        if: always() && steps.scan.outputs.success == 'true'
+        run: |
+          if [ -d "page-results" ]; then
+            echo "📦 Archiving individual page results..."
+            cp -r page-results "${REPORT_DIR}/"
+          fi
+
+      - name: 🏁 Final status
+        if: always()
+        run: |
+          if [ "${{ steps.scan.outputs.success }}" == "true" ]; then
+            echo "🎉 Accessibility scan completed successfully!"
+            echo "📊 Results are available in the artifacts section"
+            exit 0
+          else
+            echo "💥 Accessibility scan failed!"
+            echo "❌ Error: ${{ steps.scan.outputs.error }}"
+            echo "📋 Check the logs and artifacts for more details"
+            exit 1
+          fi

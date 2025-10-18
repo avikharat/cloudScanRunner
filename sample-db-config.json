@@ -1,0 +1,25 @@
+{
+  "user_id": "auth0|68e5fff46dc80010b238ef3a",
+  "organization_id": "org_12345",
+  "project_id": "efacc480-c790-4335-90dd-4ae812e12349",
+  "scan_config": {
+    "mode": "manual",
+    "urls": [
+      "https://dequeuniversity.com/demo/mars/",
+      "https://dequeuniversity.com/demo/dream/"
+    ],
+    "viewport": "1920x1080",
+    "accessibility_standard": "wcag2aa",
+    "enable_contrast_check": true,
+    "headless": true,
+    "capture_screenshots": true,
+    "store_html_snapshot": false,
+    "timeout_ms": 30000
+  },
+  "metadata": {
+    "trigger_source": "automated_scanner",
+    "environment": "development",
+    "notes": "Test scan with database integration",
+    "scan_type": "accessibility_audit"
+  }
+}

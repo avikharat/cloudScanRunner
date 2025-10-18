@@ -1,0 +1,17 @@
+{
+  "api": {
+    "base_url": "http://localhost:3000",
+    "timeout_ms": 30000,
+    "retry_attempts": 3,
+    "retry_delay_ms": 1000
+  },
+  "upload": {
+    "max_file_size_mb": 10,
+    "supported_formats": ["png", "jpg", "jpeg", "webp"],
+    "compression_enabled": true
+  },
+  "database": {
+    "batch_size": 100,
+    "connection_timeout_ms": 5000
+  }
+}
