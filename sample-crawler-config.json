@@ -20,7 +20,7 @@
     "headless": true,
     "capture_screenshots": true,
     "store_html_snapshot": false,
-    "upload_to_api": false,
+    "upload_to_api": true,
     "timeout_ms": 30000,
     "authentication": {
       "enabled": false,

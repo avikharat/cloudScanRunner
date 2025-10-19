@@ -9,6 +9,7 @@ class ApiClient {
   }
 
   async makeRequest(method, endpoint, data = null, options = {}) {
+    const { default: fetch } = await import('node-fetch');
     const url = `${this.baseUrl}${endpoint}`;
     
     const config = {
@@ -139,7 +140,7 @@ class ApiClient {
   // Upload screenshot to database
   async uploadScreenshot(imagePath) {
     try {
-      const fetch = require('node-fetch');
+      const { default: fetch } = await import('node-fetch');
       const FormData = require('form-data');
       const form = new FormData();
       
