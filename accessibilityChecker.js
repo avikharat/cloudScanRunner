@@ -457,7 +457,16 @@ class AccessibilityChecker {
         console.log('Crawling URLs starting from:', config.scan_config.start_url);
         urlsToScan = await this.crawlUrls(config.scan_config.start_url, config.scan_config);
       } else if (config.scan_config.mode === 'manual') {
-        urlsToScan = config.scan_config.urls;
+        console.log('Manual scan mode - using provided URLs');
+        urlsToScan = config.scan_config.urls || [];
+        
+        if (urlsToScan.length === 0) {
+          throw new Error('Manual mode requires at least one URL in the urls array');
+        }
+        
+        console.log('URLs to scan:', urlsToScan);
+      } else {
+        throw new Error(`Unknown scan mode: ${config.scan_config.mode}. Supported modes: 'crawler', 'manual'`);
       }
 
       console.log(`Found ${urlsToScan.length} URLs to scan`);
