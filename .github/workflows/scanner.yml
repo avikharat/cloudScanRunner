@@ -32,9 +32,27 @@ jobs:
           echo '${{ github.event.inputs.config }}' | jq . > config.json
           echo "Config parsed successfully"
 
+      - name: Validate required secrets
+        run: |
+          if [ -z "${{ secrets.API_BASE_URL }}" ]; then
+            echo "❌ ERROR: API_BASE_URL secret is not set"
+            echo "Please add API_BASE_URL to your repository secrets:"
+            echo "  1. Go to Settings → Secrets and variables → Actions"
+            echo "  2. Click 'New repository secret'"
+            echo "  3. Name: API_BASE_URL"
+            echo "  4. Value: https://your-api-domain.com"
+            exit 1
+          else
+            echo "✅ API_BASE_URL secret is configured"
+            echo "API Base URL: ${{ secrets.API_BASE_URL }}"
+          fi
+
       - name: Run accessibility scan
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: |
           echo "Starting accessibility scan..."
+          echo "Using API Base URL: $API_BASE_URL"
           node run-scan.js config.json
 
       - name: Upload results as artifact

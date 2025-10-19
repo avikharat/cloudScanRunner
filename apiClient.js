@@ -2,8 +2,10 @@ const fs = require('fs').promises;
 const path = require('path');
 
 class ApiClient {
-  constructor(baseUrl = 'http://localhost:3000') {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl = null) {
+    // Priority: parameter > environment variable > default
+    this.baseUrl = baseUrl || process.env.API_BASE_URL || 'http://localhost:3000';
+    console.log(`API Client initialized with base URL: ${this.baseUrl}`);
   }
 
   async makeRequest(method, endpoint, data = null, options = {}) {
